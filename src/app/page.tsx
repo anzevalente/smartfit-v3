@@ -7,6 +7,11 @@ export default function SmartWardrobe() {
   const [outfit, setOutfit] = useState<any[]>([]);
   const [mood, setMood] = useState('');
 
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [newItemCategory, setNewItemCategory] = useState<string>('top');
+  const [newItemStyle, setNewItemStyle] = useState<string>('casual');
+
   // Shranjevanje v brskalnik
   useEffect(() => {
     const saved = localStorage.getItem('my-wardrobe');
@@ -17,28 +22,46 @@ export default function SmartWardrobe() {
     localStorage.setItem('my-wardrobe', JSON.stringify(wardrobe));
   }, [wardrobe]);
 
-  const handleUpload = (e: any) => {
-    const file = e.target.files[0];
+  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        const cat = prompt("Kategorija? (top / bottom / shoes)");
-        const stl = prompt("Stil? (casual / formal)");
-        if (cat) {
-          setWardrobe([...wardrobe, { id: Date.now(), url: reader.result, category: cat, style: stl }]);
-        }
+        setPreviewUrl(reader.result as string);
+        setUploadModalOpen(true);
       };
       reader.readAsDataURL(file);
     }
+    // Ponastavimo vrednost, da lahko uporabnik še enkrat izbere isto datoteko
+    e.target.value = '';
+  };
+
+  const confirmUpload = () => {
+    if (previewUrl) {
+      setWardrobe([...wardrobe, { id: Date.now(), url: previewUrl, category: newItemCategory, style: newItemStyle }]);
+    }
+    setUploadModalOpen(false);
+    setPreviewUrl(null);
+    setNewItemCategory('top');
+    setNewItemStyle('casual');
   };
 
   const generateFit = () => {
-    const tops = wardrobe.filter(i => i.category === 'top');
-    const bottoms = wardrobe.filter(i => i.category === 'bottom');
+    let tops = wardrobe.filter(i => i.category === 'top');
+    let bottoms = wardrobe.filter(i => i.category === 'bottom');
+
+    if (mood) {
+      const styleTops = tops.filter(t => t.style === mood);
+      if (styleTops.length > 0) tops = styleTops;
+
+      const styleBottoms = bottoms.filter(b => b.style === mood);
+      if (styleBottoms.length > 0) bottoms = styleBottoms;
+    }
+
     if (tops.length > 0 && bottoms.length > 0) {
-      const selectedTop = tops.find(t => t.style === mood) || tops[0];
-      const selectedBottom = bottoms.find(b => b.style === mood) || bottoms[0];
-      setOutfit([selectedTop, selectedBottom]);
+      const randomTop = tops[Math.floor(Math.random() * tops.length)];
+      const randomBottom = bottoms[Math.floor(Math.random() * bottoms.length)];
+      setOutfit([randomTop, randomBottom]);
     } else {
       alert("Naloži vsaj en 'top' in en 'bottom'!");
     }
@@ -67,7 +90,9 @@ export default function SmartWardrobe() {
           </button>
           <div className="mt-6 flex flex-col gap-2">
             {outfit.map((item, i) => (
-              <img key={i} src={item.url} className="w-full h-48 object-cover rounded-2xl border" />
+              <div key={i} className="w-full h-56 rounded-2xl border bg-gray-100 p-2 flex items-center justify-center overflow-hidden">
+                <img src={item.url} className="w-full h-full object-contain drop-shadow-sm mix-blend-multiply" />
+              </div>
             ))}
           </div>
         </section>
@@ -76,14 +101,84 @@ export default function SmartWardrobe() {
           <h2 className="font-bold mb-4 flex gap-2 items-center"><LayoutGrid size={18} /> Moja Omara</h2>
           <div className="grid grid-cols-2 gap-2">
             {wardrobe.map(item => (
-              <div key={item.id} className="relative">
-                <img src={item.url} className="w-full h-32 object-cover rounded-xl border" />
-                <button onClick={() => setWardrobe(wardrobe.filter(i => i.id !== item.id))} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full"><Trash2 size={12} /></button>
+              <div key={item.id} className="relative bg-gray-100 rounded-xl border p-2 w-full h-36 flex items-center justify-center overflow-hidden">
+                <img src={item.url} className="w-full h-full object-contain mix-blend-multiply" />
+                <button onClick={() => setWardrobe(wardrobe.filter(i => i.id !== item.id))} className="absolute top-1 right-1 bg-red-500 text-white p-1.5 rounded-full hover:bg-red-600 transition-colors shadow-sm"><Trash2 size={12} /></button>
               </div>
             ))}
           </div>
         </section>
       </main>
+
+      {/* Nastavitve slike / Upload Modal */}
+      {uploadModalOpen && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-[2rem] p-6 w-full max-w-sm flex flex-col gap-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+            <h2 className="font-bold text-xl text-center">Dodaj v omaro</h2>
+
+            {previewUrl && (
+              <div className="w-full h-48 bg-gray-100 rounded-2xl border p-3 flex items-center justify-center">
+                <img src={previewUrl} className="w-full h-full object-contain mix-blend-multiply" />
+              </div>
+            )}
+
+            <div className="flex flex-col gap-3">
+              <label className="font-semibold text-sm text-gray-600">Kaj si naložil/a?</label>
+              <div className="flex gap-2 bg-gray-50 p-1.5 rounded-2xl">
+                {[
+                  { id: 'top', label: 'Zgoraj' },
+                  { id: 'bottom', label: 'Spodaj' },
+                  { id: 'shoes', label: 'Obutev' }
+                ].map(c => (
+                  <button
+                    key={c.id}
+                    onClick={() => setNewItemCategory(c.id)}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${newItemCategory === c.id ? 'bg-white shadow-sm text-black border border-gray-200/60' : 'text-gray-400 hover:text-gray-700'}`}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <label className="font-semibold text-sm text-gray-600">Kakšen je stil?</label>
+              <div className="flex gap-2 bg-gray-50 p-1.5 rounded-2xl">
+                {[
+                  { id: 'casual', label: 'Casual' },
+                  { id: 'formal', label: 'Formal' }
+                ].map(s => (
+                  <button
+                    key={s.id}
+                    onClick={() => setNewItemStyle(s.id)}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${newItemStyle === s.id ? 'bg-white shadow-sm text-black border border-gray-200/60' : 'text-gray-400 hover:text-gray-700'}`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-2">
+              <button
+                onClick={() => {
+                  setUploadModalOpen(false);
+                  setPreviewUrl(null);
+                }}
+                className="flex-1 py-3.5 rounded-2xl font-bold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+              >
+                Prekliči
+              </button>
+              <button
+                onClick={confirmUpload}
+                className="flex-1 py-3.5 rounded-2xl font-bold bg-black text-white hover:bg-gray-800 transition-colors flex justify-center items-center gap-2"
+              >
+                <Sparkles size={18} /> Dodaj
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
