@@ -49,6 +49,7 @@ export default function SmartWardrobe() {
   const generateFit = () => {
     let tops = wardrobe.filter(i => i.category === 'top');
     let bottoms = wardrobe.filter(i => i.category === 'bottom');
+    let shoes = wardrobe.filter(i => i.category === 'shoes');
 
     if (mood) {
       const styleTops = tops.filter(t => t.style === mood);
@@ -56,12 +57,23 @@ export default function SmartWardrobe() {
 
       const styleBottoms = bottoms.filter(b => b.style === mood);
       if (styleBottoms.length > 0) bottoms = styleBottoms;
+
+      const styleShoes = shoes.filter(s => s.style === mood);
+      if (styleShoes.length > 0) shoes = styleShoes;
     }
 
     if (tops.length > 0 && bottoms.length > 0) {
       const randomTop = tops[Math.floor(Math.random() * tops.length)];
       const randomBottom = bottoms[Math.floor(Math.random() * bottoms.length)];
-      setOutfit([randomTop, randomBottom]);
+
+      const newOutfit = [randomTop, randomBottom];
+
+      if (shoes.length > 0) {
+        const randomShoes = shoes[Math.floor(Math.random() * shoes.length)];
+        newOutfit.push(randomShoes);
+      }
+
+      setOutfit(newOutfit);
     } else {
       alert("Naloži vsaj en 'top' in en 'bottom'!");
     }
